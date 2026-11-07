@@ -1,8 +1,12 @@
 //! Student-facing question types.
 
+use crate::id::{ChoiceId, MatchItemId, OrderingItemId, QuestionId};
+
 /// A complete quiz question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Question {
-    /// The unique identifier for this question.
+    /// The unique identifier for this question within its quiz.
     id: QuestionId,
     /// The prompt given with this question.
     prompt: String,
@@ -14,10 +18,10 @@ pub struct Question {
 
 impl Question {
     /// Creates a new question.
-    pub fn new(id: QuestionId, prompt: String, points: u32, kind: QuestionKind) -> Self {
+    pub fn new(id: QuestionId, prompt: impl Into<String>, points: u32, kind: QuestionKind) -> Self {
         Self {
             id,
-            prompt,
+            prompt: prompt.into(),
             points,
             kind,
         }
@@ -44,23 +48,9 @@ impl Question {
     }
 }
 
-/// Stable identifier for questions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct QuestionId(u32);
-
-impl QuestionId {
-    /// Creates a new question identifier.
-    pub fn new(value: u32) -> Self {
-        Self(value)
-    }
-
-    /// Returns the raw numeric value of this identifier.
-    pub fn value(self) -> u32 {
-        self.0
-    }
-}
-
 /// The type-specific data for a question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QuestionKind {
     /// A question where one or more options are selected.
     MultipleChoice(MultipleChoiceQuestion),
@@ -75,6 +65,8 @@ pub enum QuestionKind {
 }
 
 /// A question with multiple choice options.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MultipleChoiceQuestion {
     /// The options available on this question.
     options: Vec<ChoiceOption>,
@@ -103,8 +95,10 @@ impl MultipleChoiceQuestion {
 }
 
 /// A single option in a multiple choice question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChoiceOption {
-    /// The unique identifier for this option.
+    /// The unique identifier for this option within its question.
     id: ChoiceId,
     /// The text shown for this option.
     text: String,
@@ -112,8 +106,11 @@ pub struct ChoiceOption {
 
 impl ChoiceOption {
     /// Creates a new choice option.
-    pub fn new(id: ChoiceId, text: String) -> Self {
-        Self { id, text }
+    pub fn new(id: ChoiceId, text: impl Into<String>) -> Self {
+        Self {
+            id,
+            text: text.into(),
+        }
     }
 
     /// Returns this option's identifier.
@@ -127,45 +124,33 @@ impl ChoiceOption {
     }
 }
 
-/// A unique identifier for a choice option within a question.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ChoiceId(u32);
-
-impl ChoiceId {
-    /// Creates a new choice identifier.
-    pub fn new(value: u32) -> Self {
-        Self(value)
-    }
-
-    /// Returns the raw numeric value of this identifier.
-    pub fn value(self) -> u32 {
-        self.0
-    }
-}
-
 /// A question that is answered in text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TextAnswerQuestion {
     /// The maximum number of words allowed in the answer.
-    word_limit: Option<usize>,
+    word_limit: Option<u32>,
 }
 
 impl TextAnswerQuestion {
     /// Creates a new text answer question.
-    pub fn new(word_limit: Option<usize>) -> Self {
+    pub fn new(word_limit: Option<u32>) -> Self {
         Self { word_limit }
     }
 
     /// Returns the maximum allowed word count, if one exists.
-    pub fn word_limit(&self) -> Option<usize> {
+    pub fn word_limit(&self) -> Option<u32> {
         self.word_limit
     }
 }
 
 /// A question that is answered by matching items from two lists.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MatchingQuestion {
     /// The left list options.
     left: Vec<MatchItem>,
-    /// The right list options.
+    /// The right list options. May contain distractors with no matching left item.
     right: Vec<MatchItem>,
 }
 
@@ -187,8 +172,10 @@ impl MatchingQuestion {
 }
 
 /// An item within a matching question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MatchItem {
-    /// The unique identifier for this item.
+    /// The unique identifier for this item within its question (across both lists).
     id: MatchItemId,
     /// The text shown for this item.
     text: String,
@@ -196,8 +183,11 @@ pub struct MatchItem {
 
 impl MatchItem {
     /// Creates a new matching item.
-    pub fn new(id: MatchItemId, text: String) -> Self {
-        Self { id, text }
+    pub fn new(id: MatchItemId, text: impl Into<String>) -> Self {
+        Self {
+            id,
+            text: text.into(),
+        }
     }
 
     /// Returns this item's identifier.
@@ -211,25 +201,11 @@ impl MatchItem {
     }
 }
 
-/// A unique identifier for a match item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MatchItemId(u32);
-
-impl MatchItemId {
-    /// Creates a new match item identifier.
-    pub fn new(value: u32) -> Self {
-        Self(value)
-    }
-
-    /// Returns the raw numeric value of this identifier.
-    pub fn value(self) -> u32 {
-        self.0
-    }
-}
-
 /// A question that is answered by ordering items.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OrderingQuestion {
-    /// The items to be ordered.
+    /// The items to be ordered, in the (shuffled) order they are shown to the student.
     items: Vec<OrderingItem>,
 }
 
@@ -246,8 +222,10 @@ impl OrderingQuestion {
 }
 
 /// An item within an ordering question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OrderingItem {
-    /// The unique identifier for this item.
+    /// The unique identifier for this item within its question.
     id: OrderingItemId,
     /// The text shown for this item.
     text: String,
@@ -255,8 +233,11 @@ pub struct OrderingItem {
 
 impl OrderingItem {
     /// Creates a new ordering item.
-    pub fn new(id: OrderingItemId, text: String) -> Self {
-        Self { id, text }
+    pub fn new(id: OrderingItemId, text: impl Into<String>) -> Self {
+        Self {
+            id,
+            text: text.into(),
+        }
     }
 
     /// Returns this item's identifier.
@@ -267,21 +248,5 @@ impl OrderingItem {
     /// Returns this item's text.
     pub fn text(&self) -> &str {
         &self.text
-    }
-}
-
-/// A unique identifier for an ordering item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct OrderingItemId(u32);
-
-impl OrderingItemId {
-    /// Creates a new ordering item identifier.
-    pub fn new(value: u32) -> Self {
-        Self(value)
-    }
-
-    /// Returns the raw numeric value of this identifier.
-    pub fn value(self) -> u32 {
-        self.0
     }
 }

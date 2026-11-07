@@ -1,212 +1,250 @@
 //! Answer key and student submission types.
+//!
+//! Both [`AnswerKey`] and [`Submission`] store answers in a map keyed by
+//! [`QuestionId`]. This gives O(log n) lookups when grading, makes duplicate
+//! answers for a question unrepresentable, and keeps serialized output
+//! deterministic.
 
-use crate::question::{ChoiceId, MatchItemId, OrderingItemId, QuestionId};
+use std::collections::{BTreeMap, BTreeSet};
+
+use crate::id::{ChoiceId, MatchItemId, OrderingItemId, QuestionId, QuizId};
 
 /// The administrator-owned answer key for a quiz.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AnswerKey {
-    /// The correct answers in this answer key.
-    answers: Vec<CorrectAnswer>,
+    /// The correct answer for each question.
+    answers: BTreeMap<QuestionId, CorrectAnswer>,
 }
 
 impl AnswerKey {
-    /// Creates a new answer key.
-    pub fn new(answers: Vec<CorrectAnswer>) -> Self {
-        Self { answers }
+    /// Creates an empty answer key.
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// Returns the correct answers in this answer key.
-    pub fn answers(&self) -> &[CorrectAnswer] {
-        &self.answers
+    /// Inserts the correct answer for a question.
+    ///
+    /// Returns the previous answer for that question, if one existed.
+    pub fn insert(
+        &mut self,
+        question_id: QuestionId,
+        answer: CorrectAnswer,
+    ) -> Option<CorrectAnswer> {
+        self.answers.insert(question_id, answer)
+    }
+
+    /// Returns the correct answer for a question, if one exists.
+    pub fn get(&self, question_id: QuestionId) -> Option<&CorrectAnswer> {
+        self.answers.get(&question_id)
+    }
+
+    /// Iterates over every `(question, correct answer)` pair in question-id order.
+    pub fn iter(&self) -> impl Iterator<Item = (QuestionId, &CorrectAnswer)> {
+        self.answers.iter().map(|(id, answer)| (*id, answer))
+    }
+
+    /// Returns the number of answers in this key.
+    pub fn len(&self) -> usize {
+        self.answers.len()
+    }
+
+    /// Returns true if this key contains no answers.
+    pub fn is_empty(&self) -> bool {
+        self.answers.is_empty()
     }
 }
 
-/// A correct answer for a single question.
+impl FromIterator<(QuestionId, CorrectAnswer)> for AnswerKey {
+    fn from_iter<I: IntoIterator<Item = (QuestionId, CorrectAnswer)>>(iter: I) -> Self {
+        Self {
+            answers: iter.into_iter().collect(),
+        }
+    }
+}
+
+/// The correct answer for a single question.
+///
+/// The variant must correspond to the [`QuestionKind`](crate::question::QuestionKind)
+/// of the question it is keyed under; a grader should treat a mismatch as an error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CorrectAnswer {
     /// The correct choice or choices for a multiple choice question.
     MultipleChoice {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The correct choices for this multiple choice question.
-        choices: Vec<ChoiceId>,
+        /// The set of correct choices.
+        choices: BTreeSet<ChoiceId>,
     },
-    /// The expected answer or answers for a text answer question.
+    /// The accepted answers for a text answer question.
     TextAnswer {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The expected answers for this text answer question.
-        expected_answers: Vec<String>,
-        /// Whether the expected answers are case sensitive.
+        /// Any of these answers is accepted as correct.
+        expected: Vec<String>,
+        /// Whether comparison against `expected` is case sensitive.
         case_sensitive: bool,
     },
     /// The correct value for a true/false question.
-    TrueFalse {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The correct value for this true/false question (correct = true, incorrect = false).
-        correct: bool,
-    },
+    TrueFalse(bool),
     /// The correct pairs for a matching question.
     Matching {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The correct pairs for this matching question.
-        pairs: Vec<(MatchItemId, MatchItemId)>,
+        /// Maps each left-side item to its correct right-side item.
+        pairs: BTreeMap<MatchItemId, MatchItemId>,
     },
     /// The correct order for an ordering question.
     Ordering {
-        /// The ID of this question that this answer is for.
-        question_id: QuestionId,
-        /// The correct order for this ordering question.
+        /// The item identifiers in their correct order.
         order: Vec<OrderingItemId>,
     },
 }
 
 impl CorrectAnswer {
     /// Creates a multiple choice correct answer.
-    pub fn multiple_choice(question_id: QuestionId, choices: Vec<ChoiceId>) -> Self {
+    pub fn multiple_choice(choices: impl IntoIterator<Item = ChoiceId>) -> Self {
         Self::MultipleChoice {
-            question_id,
-            choices,
+            choices: choices.into_iter().collect(),
         }
     }
 
     /// Creates a text correct answer.
     pub fn text_answer(
-        question_id: QuestionId,
-        expected_answers: Vec<String>,
+        expected: impl IntoIterator<Item = impl Into<String>>,
         case_sensitive: bool,
     ) -> Self {
         Self::TextAnswer {
-            question_id,
-            expected_answers,
+            expected: expected.into_iter().map(Into::into).collect(),
             case_sensitive,
         }
     }
 
     /// Creates a true/false correct answer.
-    pub fn true_false(question_id: QuestionId, correct: bool) -> Self {
-        Self::TrueFalse {
-            question_id,
-            correct,
-        }
+    pub fn true_false(correct: bool) -> Self {
+        Self::TrueFalse(correct)
     }
 
-    /// Creates a matching correct answer.
-    pub fn matching(question_id: QuestionId, pairs: Vec<(MatchItemId, MatchItemId)>) -> Self {
-        Self::Matching { question_id, pairs }
+    /// Creates a matching correct answer from `(left, right)` pairs.
+    pub fn matching(pairs: impl IntoIterator<Item = (MatchItemId, MatchItemId)>) -> Self {
+        Self::Matching {
+            pairs: pairs.into_iter().collect(),
+        }
     }
 
     /// Creates an ordering correct answer.
-    pub fn ordering(question_id: QuestionId, order: Vec<OrderingItemId>) -> Self {
-        Self::Ordering { question_id, order }
-    }
-
-    /// Returns the question identifier this answer belongs to.
-    pub fn question_id(&self) -> QuestionId {
-        match self {
-            Self::MultipleChoice { question_id, .. }
-            | Self::TextAnswer { question_id, .. }
-            | Self::TrueFalse { question_id, .. }
-            | Self::Matching { question_id, .. }
-            | Self::Ordering { question_id, .. } => *question_id,
+    pub fn ordering(order: impl IntoIterator<Item = OrderingItemId>) -> Self {
+        Self::Ordering {
+            order: order.into_iter().collect(),
         }
     }
 }
 
-/// A student's submitted quiz answers.
+/// A student's submitted answers for a single quiz.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Submission {
-    /// The student's submitted answers.
-    answers: Vec<StudentAnswer>,
+    /// The quiz this submission answers.
+    quiz_id: QuizId,
+    /// The student's answer for each question they answered.
+    answers: BTreeMap<QuestionId, StudentAnswer>,
 }
 
 impl Submission {
-    /// Creates a new student submission.
-    pub fn new(answers: Vec<StudentAnswer>) -> Self {
-        Self { answers }
+    /// Creates an empty submission for the given quiz.
+    pub fn new(quiz_id: QuizId) -> Self {
+        Self {
+            quiz_id,
+            answers: BTreeMap::new(),
+        }
     }
 
-    /// Returns the submitted answers.
-    pub fn answers(&self) -> &[StudentAnswer] {
-        &self.answers
+    /// Returns the identifier of the quiz this submission answers.
+    pub fn quiz_id(&self) -> QuizId {
+        self.quiz_id
+    }
+
+    /// Records the student's answer to a question.
+    ///
+    /// Returns the previous answer for that question, if one existed.
+    pub fn insert(
+        &mut self,
+        question_id: QuestionId,
+        answer: StudentAnswer,
+    ) -> Option<StudentAnswer> {
+        self.answers.insert(question_id, answer)
+    }
+
+    /// Returns the student's answer to a question, if they answered it.
+    pub fn get(&self, question_id: QuestionId) -> Option<&StudentAnswer> {
+        self.answers.get(&question_id)
+    }
+
+    /// Iterates over every `(question, student answer)` pair in question-id order.
+    pub fn iter(&self) -> impl Iterator<Item = (QuestionId, &StudentAnswer)> {
+        self.answers.iter().map(|(id, answer)| (*id, answer))
+    }
+
+    /// Returns the number of answered questions.
+    pub fn len(&self) -> usize {
+        self.answers.len()
+    }
+
+    /// Returns true if no questions were answered.
+    pub fn is_empty(&self) -> bool {
+        self.answers.is_empty()
     }
 }
 
 /// A student's answer to a single question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum StudentAnswer {
-    /// A student's selected multiple choice option or options.
+    /// The selected multiple choice option or options.
     MultipleChoice {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The selected multiple choice options.
-        choices: Vec<ChoiceId>,
+        /// The set of selected choices.
+        choices: BTreeSet<ChoiceId>,
     },
-    /// A student's text answer.
-    TextAnswer {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The student's text answer.
-        text: String,
-    },
-    /// A student's true/false answer.
-    TrueFalse {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The student's true/false answer.
-        value: bool,
-    },
-    /// A student's matching pairs.
+    /// A free-form text answer.
+    TextAnswer(String),
+    /// A true/false answer.
+    TrueFalse(bool),
+    /// The student's matching pairs.
     Matching {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The student's matching pairs.
-        pairs: Vec<(MatchItemId, MatchItemId)>,
+        /// Maps each left-side item to the right-side item the student chose.
+        pairs: BTreeMap<MatchItemId, MatchItemId>,
     },
-    /// A student's ordering answer.
+    /// The student's ordering.
     Ordering {
-        /// The ID of the question that this answer is for.
-        question_id: QuestionId,
-        /// The correct order for this ordering question.
+        /// The item identifiers in the order the student chose.
         order: Vec<OrderingItemId>,
     },
 }
 
 impl StudentAnswer {
     /// Creates a multiple choice student answer.
-    pub fn multiple_choice(question_id: QuestionId, choices: Vec<ChoiceId>) -> Self {
+    pub fn multiple_choice(choices: impl IntoIterator<Item = ChoiceId>) -> Self {
         Self::MultipleChoice {
-            question_id,
-            choices,
+            choices: choices.into_iter().collect(),
         }
     }
 
     /// Creates a text student answer.
-    pub fn text_answer(question_id: QuestionId, text: String) -> Self {
-        Self::TextAnswer { question_id, text }
+    pub fn text_answer(text: impl Into<String>) -> Self {
+        Self::TextAnswer(text.into())
     }
 
     /// Creates a true/false student answer.
-    pub fn true_false(question_id: QuestionId, value: bool) -> Self {
-        Self::TrueFalse { question_id, value }
+    pub fn true_false(value: bool) -> Self {
+        Self::TrueFalse(value)
     }
 
-    /// Creates a matching student answer.
-    pub fn matching(question_id: QuestionId, pairs: Vec<(MatchItemId, MatchItemId)>) -> Self {
-        Self::Matching { question_id, pairs }
+    /// Creates a matching student answer from `(left, right)` pairs.
+    pub fn matching(pairs: impl IntoIterator<Item = (MatchItemId, MatchItemId)>) -> Self {
+        Self::Matching {
+            pairs: pairs.into_iter().collect(),
+        }
     }
 
     /// Creates an ordering student answer.
-    pub fn ordering(question_id: QuestionId, order: Vec<OrderingItemId>) -> Self {
-        Self::Ordering { question_id, order }
-    }
-
-    /// Returns the question identifier this answer belongs to.
-    pub fn question_id(&self) -> QuestionId {
-        match self {
-            Self::MultipleChoice { question_id, .. }
-            | Self::TextAnswer { question_id, .. }
-            | Self::TrueFalse { question_id, .. }
-            | Self::Matching { question_id, .. }
-            | Self::Ordering { question_id, .. } => *question_id,
+    pub fn ordering(order: impl IntoIterator<Item = OrderingItemId>) -> Self {
+        Self::Ordering {
+            order: order.into_iter().collect(),
         }
     }
 }

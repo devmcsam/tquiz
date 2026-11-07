@@ -1,29 +1,45 @@
 //! Quiz container types.
 
 use crate::answer::AnswerKey;
+use crate::id::{QuestionId, QuizId};
 use crate::question::Question;
 
 /// A student-facing quiz.
 ///
 /// This type should be safe to send to test takers because it does not contain
 /// the answer key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Quiz {
+    /// The unique identifier for this quiz. Submissions reference this.
+    id: QuizId,
     /// The title or name of the quiz.
     title: String,
     /// The description of the quiz, if one exists.
     description: Option<String>,
-    /// The questions within this quiz.
+    /// The questions within this quiz, in presentation order.
     questions: Vec<Question>,
 }
 
 impl Quiz {
     /// Creates a new quiz.
-    pub fn new(title: String, description: Option<String>, questions: Vec<Question>) -> Self {
+    pub fn new(
+        id: QuizId,
+        title: impl Into<String>,
+        description: Option<String>,
+        questions: Vec<Question>,
+    ) -> Self {
         Self {
-            title,
+            id,
+            title: title.into(),
             description,
             questions,
         }
+    }
+
+    /// Returns this quiz's identifier.
+    pub fn id(&self) -> QuizId {
+        self.id
     }
 
     /// Returns the quiz title.
@@ -36,9 +52,14 @@ impl Quiz {
         self.description.as_deref()
     }
 
-    /// Returns the questions in this quiz.
+    /// Returns the questions in this quiz, in presentation order.
     pub fn questions(&self) -> &[Question] {
         &self.questions
+    }
+
+    /// Returns the question with the given identifier, if it exists.
+    pub fn question(&self, id: QuestionId) -> Option<&Question> {
+        self.questions.iter().find(|q| q.id() == id)
     }
 
     /// Returns the total number of points available in this quiz.
@@ -60,8 +81,11 @@ impl Quiz {
 /// An administrator-owned quiz package.
 ///
 /// This contains both the student-facing quiz and the private answer key.
-/// Do not send this whole type to test takers.
+/// Do not send this whole type to test takers; use [`QuizWithAnswerKey::quiz`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QuizWithAnswerKey {
+    /// The student-facing quiz.
     quiz: Quiz,
     /// The correct answers for the given quiz.
     answer_key: AnswerKey,

@@ -12,3 +12,4 @@ license = "MIT"
 authors = ["Samuel McNally <sammcnally587@gmail.com>"]
 
 [workspace.dependencies]
+serde = { version = "1.0.229", features = ["derive"] }

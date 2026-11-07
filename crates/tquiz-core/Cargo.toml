@@ -11,3 +11,9 @@ description = "The core parts of the tquiz libraries"
 
 
 [dependencies]
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+## Enables `serde::Serialize`/`serde::Deserialize` on all public data types.
+serde = ["dep:serde"]
