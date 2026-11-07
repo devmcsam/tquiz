@@ -8,8 +8,11 @@ use crate::question::Question;
 /// This type should be safe to send to test takers because it does not contain
 /// the answer key.
 pub struct Quiz {
+    /// The title or name of the quiz.
     title: String,
+    /// The description of the quiz, if one exists.
     description: Option<String>,
+    /// The questions within this quiz.
     questions: Vec<Question>,
 }
 
@@ -60,6 +63,7 @@ impl Quiz {
 /// Do not send this whole type to test takers.
 pub struct QuizWithAnswerKey {
     quiz: Quiz,
+    /// The correct answers for the given quiz.
     answer_key: AnswerKey,
 }
 

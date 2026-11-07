@@ -4,6 +4,7 @@ use crate::question::{ChoiceId, MatchItemId, OrderingItemId, QuestionId};
 
 /// The administrator-owned answer key for a quiz.
 pub struct AnswerKey {
+    /// The correct answers in this answer key.
     answers: Vec<CorrectAnswer>,
 }
 
@@ -23,28 +24,39 @@ impl AnswerKey {
 pub enum CorrectAnswer {
     /// The correct choice or choices for a multiple choice question.
     MultipleChoice {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The correct choices for this multiple choice question.
         choices: Vec<ChoiceId>,
     },
     /// The expected answer or answers for a text answer question.
     TextAnswer {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The expected answers for this text answer question.
         expected_answers: Vec<String>,
+        /// Whether the expected answers are case sensitive.
         case_sensitive: bool,
     },
     /// The correct value for a true/false question.
     TrueFalse {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The correct value for this true/false question (correct = true, incorrect = false).
         correct: bool,
     },
     /// The correct pairs for a matching question.
     Matching {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The correct pairs for this matching question.
         pairs: Vec<(MatchItemId, MatchItemId)>,
     },
     /// The correct order for an ordering question.
     Ordering {
+        /// The ID of this question that this answer is for.
         question_id: QuestionId,
+        /// The correct order for this ordering question.
         order: Vec<OrderingItemId>,
     },
 }
@@ -103,6 +115,7 @@ impl CorrectAnswer {
 
 /// A student's submitted quiz answers.
 pub struct Submission {
+    /// The student's submitted answers.
     answers: Vec<StudentAnswer>,
 }
 
@@ -122,27 +135,37 @@ impl Submission {
 pub enum StudentAnswer {
     /// A student's selected multiple choice option or options.
     MultipleChoice {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The selected multiple choice options.
         choices: Vec<ChoiceId>,
     },
     /// A student's text answer.
     TextAnswer {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The student's text answer.
         text: String,
     },
     /// A student's true/false answer.
     TrueFalse {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The student's true/false answer.
         value: bool,
     },
     /// A student's matching pairs.
     Matching {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The student's matching pairs.
         pairs: Vec<(MatchItemId, MatchItemId)>,
     },
     /// A student's ordering answer.
     Ordering {
+        /// The ID of the question that this answer is for.
         question_id: QuestionId,
+        /// The correct order for this ordering question.
         order: Vec<OrderingItemId>,
     },
 }
