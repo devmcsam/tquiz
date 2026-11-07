@@ -9,6 +9,6 @@ version = "0.1.0"
 edition = "2024"
 homepage = "https://github.com/devmcsam/tquiz"
 license = "MIT"
-authors = ["Samuel McNally <sammcnally587@gmail.com"]
+authors = ["Samuel McNally <sammcnally587@gmail.com>"]
 
 [workspace.dependencies]
