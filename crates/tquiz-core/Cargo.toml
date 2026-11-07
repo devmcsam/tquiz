@@ -1,0 +1,13 @@
+[package]
+name = "tquiz-core"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+authors.workspace = true
+readme = "README.md"
+repository = "https://github.com/devmcsam/tquiz/crates/tquiz-core"
+description = "The core parts of the tquiz libraries"
+
+
+[dependencies]

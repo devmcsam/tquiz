@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "crates/tquiz-core"
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+homepage = "https://github.com/devmcsam/tquiz"
+license = "MIT"
+authors = ["Samuel McNally <sammcnally587@gmail.com"]
+
+[workspace.dependencies]
