@@ -62,6 +62,8 @@ pub enum QuestionKind {
     Matching(MatchingQuestion),
     /// A question where items are ordered in a specific order.
     Ordering(OrderingQuestion),
+    /// A question where the answer is given in text but must be graded by the administrator.
+    OpenEnded(OpenEndedQuestion),
 }
 
 /// A question with multiple choice options.
@@ -248,5 +250,22 @@ impl OrderingItem {
     /// Returns this item's text.
     pub fn text(&self) -> &str {
         &self.text
+    }
+}
+
+/// A question answered in text and must be graded by the administrator.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OpenEndedQuestion {
+    word_limit: Option<u32>,
+}
+
+impl OpenEndedQuestion {
+    pub fn new(limit: Option<u32>) -> Self {
+        Self { word_limit: limit }
+    }
+
+    pub fn word_limit(&self) -> Option<u32> {
+        self.word_limit
     }
 }
