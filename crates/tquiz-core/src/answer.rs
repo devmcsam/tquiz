@@ -214,6 +214,8 @@ pub enum StudentAnswer {
         /// The item identifiers in the order the student chose.
         order: Vec<OrderingItemId>,
     },
+    /// A text answer to an open ended question.
+    OpenEndedAnswer(String),
 }
 
 impl StudentAnswer {
@@ -246,5 +248,9 @@ impl StudentAnswer {
         Self::Ordering {
             order: order.into_iter().collect(),
         }
+    }
+
+    pub fn open_ended_answer(text: impl Into<String>) -> Self {
+        Self::OpenEndedAnswer(text.into())
     }
 }
